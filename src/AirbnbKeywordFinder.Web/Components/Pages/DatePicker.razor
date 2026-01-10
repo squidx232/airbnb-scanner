@@ -17,8 +17,8 @@
         <!-- Backdrop to close -->
         <div class="fixed inset-0 z-[9998]" @onclick="() => isOpen = false"></div>
         
-        <!-- Calendar dropdown -->
-        <div class="absolute left-0 bottom-full mb-2 z-[9999] bg-white rounded-2xl shadow-2xl border border-gray-200 p-4 w-72 animate-fade-in">
+        <!-- Calendar dropdown - shows below input -->
+        <div class="absolute left-0 top-full mt-2 z-[9999] bg-white rounded-2xl shadow-2xl border border-gray-200 p-4 w-72 animate-fade-in">
             <!-- Header -->
             <div class="flex items-center justify-between mb-4">
                 <button type="button" @onclick="PreviousMonth" @onclick:stopPropagation="true" class="p-2 hover:bg-gray-100 rounded-lg transition">

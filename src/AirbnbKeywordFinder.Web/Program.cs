@@ -3,7 +3,8 @@ using System.Runtime.InteropServices;
 using AirbnbKeywordFinder.Core.Extensions;
 using AirbnbKeywordFinder.Web.Components;
 
-// Hide console window on Windows
+// Hide console window on Windows (only in Release)
+#if !DEBUG
 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 {
     [DllImport("kernel32.dll")]
@@ -15,12 +16,14 @@ if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
     var handle = GetConsoleWindow();
     ShowWindow(handle, 0); // 0 = SW_HIDE
 }
+#endif
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddControllers(); // Add API controllers
 builder.Services.AddAirbnbKeywordFinder();
 
 var app = builder.Build();
@@ -35,6 +38,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
 
+app.MapControllers(); // Map API endpoints
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
