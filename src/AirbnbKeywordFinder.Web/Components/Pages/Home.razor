@@ -5,8 +5,8 @@
 
 <div class="space-y-8 animate-fade-in">
     <!-- Search Card -->
-    <div class="glass rounded-2xl shadow-xl overflow-hidden">
-        <div class="p-8">
+    <div class="glass rounded-2xl shadow-xl overflow-visible">
+        <div class="p-8 overflow-visible">
             <div class="text-center mb-8">
                 <h2 class="text-3xl font-bold text-gray-900 mb-2">Find Your Perfect Stay</h2>
                 <p class="text-gray-600">Search Airbnb listings by keywords in their full descriptions</p>
@@ -42,7 +42,7 @@
                 </div>
 
                 <!-- Dates and Guests -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" style="position: relative; z-index: 100;">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Check-in</label>
                         <DatePicker @bind-SelectedDate="searchModel.CheckIn" 
@@ -181,10 +181,12 @@
                                 <div>
                                     <label class="block text-xs text-gray-600 mb-1">Max Results</label>
                                     <select @bind="searchModel.MaxResults" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500" disabled="@isSearching">
-                                        <option value="3">3</option>
                                         <option value="5">5</option>
                                         <option value="10">10</option>
                                         <option value="20">20</option>
+                                        <option value="30">30</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
                                     </select>
                                 </div>
                                 <div>
@@ -193,6 +195,10 @@
                                         <option value="1">1</option>
                                         <option value="2">2</option>
                                         <option value="3">3</option>
+                                        <option value="5">5</option>
+                                        <option value="10">10</option>
+                                        <option value="15">15</option>
+                                        <option value="20">20</option>
                                     </select>
                                 </div>
                                 <div class="flex items-end">
@@ -203,12 +209,23 @@
                                     </label>
                                 </div>
                                 <div>
-                                    <label class="block text-xs text-gray-600 mb-1">Min Keywords</label>
+                                    <label class="flex items-center gap-1 text-xs text-gray-600 mb-1">
+                                        Min Keywords
+                                        <span class="relative group cursor-help">
+                                            <svg class="w-4 h-4 text-gray-400 hover:text-indigo-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>
+                                            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-lg">
+                                                Filter results to only show listings<br/>that match at least this many keywords
+                                            </span>
+                                        </span>
+                                    </label>
                                     <select @bind="searchModel.MinKeywords" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500" disabled="@isSearching">
                                         <option value="1">1+ keyword</option>
                                         <option value="2">2+ keywords</option>
                                         <option value="3">3+ keywords</option>
                                         <option value="4">4+ keywords</option>
+                                        <option value="5">5+ keywords</option>
                                     </select>
                                 </div>
                                 <div class="flex items-end">
@@ -274,7 +291,7 @@
                         class="w-full py-4 px-6 bg-gradient-to-r from-brand-500 to-purple-600 text-white font-semibold rounded-xl 
                                hover:from-brand-600 hover:to-purple-700 focus:ring-4 focus:ring-brand-500/50 
                                disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 
-                               flex items-center justify-center gap-3">
+                               flex items-center justify-center gap-3 relative z-0">
                     @if (isSearching)
                     {
                         <svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
