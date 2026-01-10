@@ -430,7 +430,7 @@
     }
 
     <!-- Results Section -->
-    @if (filteredResults.Any())
+    @if (filteredResults.Any() || (results.Any() && selectedFilterKeywords.Any()))
     {
         <div class="animate-slide-up">
             <div class="flex items-center justify-between mb-6">
@@ -438,7 +438,16 @@
                     <h3 class="text-2xl font-bold text-white">Found @filteredResults.Count() Matching Listings</h3>
                     @if (results.Count != filteredResults.Count())
                     {
-                        <p class="text-white/60 text-sm">Showing listings with @searchModel.MinKeywords+ keywords (@results.Count total matches)</p>
+                        <p class="text-white/60 text-sm">
+                            @if (selectedFilterKeywords.Any())
+                            {
+                                <span>Filtered by @selectedFilterKeywords.Count keyword(s) from @results.Count total matches</span>
+                            }
+                            else
+                            {
+                                <span>Showing listings with @searchModel.MinKeywords+ keywords (@results.Count total matches)</span>
+                            }
+                        </p>
                     }
                 </div>
                 @if (searchDuration.HasValue)
@@ -449,6 +458,72 @@
                     </div>
                 }
             </div>
+
+            <!-- Keyword Filter Section -->
+            @if (allMatchedKeywords.Any())
+            {
+                <div class="glass rounded-xl p-4 mb-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                            </svg>
+                            <span class="font-semibold text-gray-800">Filter by Keywords</span>
+                            <span class="relative group cursor-help">
+                                <svg class="w-4 h-4 text-gray-400 hover:text-indigo-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-lg">
+                                    Select keywords to show only listings<br/>that contain ALL selected keywords
+                                </span>
+                            </span>
+                        </div>
+                        @if (selectedFilterKeywords.Any())
+                        {
+                            <button type="button" @onclick="ClearKeywordFilter" 
+                                    class="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                                Clear Filter
+                            </button>
+                        }
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach (var keyword in allMatchedKeywords.OrderByDescending(k => GetKeywordMatchCount(k)))
+                        {
+                            var isSelected = selectedFilterKeywords.Contains(keyword);
+                            var matchCount = GetKeywordMatchCount(keyword);
+                            <button type="button" @onclick="() => ToggleFilterKeyword(keyword)"
+                                    class="@(isSelected 
+                                        ? "bg-indigo-600 text-white border-indigo-600" 
+                                        : "bg-white text-gray-700 border-gray-300 hover:border-indigo-400 hover:bg-indigo-50") 
+                                        px-3 py-1.5 rounded-full text-sm font-medium border transition-all duration-200 flex items-center gap-2">
+                                <span>@keyword</span>
+                                <span class="@(isSelected ? "bg-indigo-500" : "bg-gray-200 text-gray-600") px-1.5 py-0.5 rounded-full text-xs">
+                                    @matchCount
+                                </span>
+                                @if (isSelected)
+                                {
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                }
+                            </button>
+                        }
+                    </div>
+                    @if (selectedFilterKeywords.Any() && !filteredResults.Any())
+                    {
+                        <p class="text-amber-600 text-sm mt-3 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                            </svg>
+                            No listings match all @selectedFilterKeywords.Count selected keywords. Try selecting fewer keywords.
+                        </p>
+                    }
+                </div>
+            }
+
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 @foreach (var match in filteredResults)
                 {
@@ -489,6 +564,7 @@
     private TimeSpan? searchDuration;
     private CancellationTokenSource? cts;
     private HashSet<string> selectedAmenities = new();
+    private HashSet<string> selectedFilterKeywords = new();
 
     private Dictionary<string, string> availableAmenities = new()
     {
@@ -509,9 +585,21 @@
     private int EstimatedCredits => searchModel.DemoMode ? 0 : 
         (1 + (searchModel.MaxResults * searchModel.MaxPages));
 
+    // Get all unique keywords that were matched across all results
+    private IEnumerable<string> allMatchedKeywords => results
+        .SelectMany(r => r.MatchedKeywords)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(k => k);
+
+    // Get count of listings that contain a specific keyword
+    private int GetKeywordMatchCount(string keyword) => results
+        .Count(r => r.MatchedKeywords.Contains(keyword, StringComparer.OrdinalIgnoreCase));
+
     // Filter and sort results by keyword count (most keywords first)
     private IEnumerable<MatchedProperty> filteredResults => results
         .Where(r => r.MatchedKeywords.Count >= searchModel.MinKeywords)
+        .Where(r => !selectedFilterKeywords.Any() || 
+            selectedFilterKeywords.All(sk => r.MatchedKeywords.Contains(sk, StringComparer.OrdinalIgnoreCase)))
         .OrderByDescending(r => r.MatchedKeywords.Count)
         .ThenByDescending(r => r.Property.Rating ?? 0);
 
@@ -519,6 +607,17 @@
     {
         if (!selectedAmenities.Remove(key))
             selectedAmenities.Add(key);
+    }
+
+    private void ToggleFilterKeyword(string keyword)
+    {
+        if (!selectedFilterKeywords.Remove(keyword))
+            selectedFilterKeywords.Add(keyword);
+    }
+
+    private void ClearKeywordFilter()
+    {
+        selectedFilterKeywords.Clear();
     }
 
     private string GetProgressClass(string msg) =>
@@ -544,6 +643,7 @@
         progressMessages.Clear();
         latestProgress = null;
         searchDuration = null;
+        selectedFilterKeywords.Clear();
         cts = new CancellationTokenSource();
 
         var keywords = searchModel.Keywords
