@@ -1,6 +1,8 @@
 # Airbnb Scanner
 
-A web application that searches Airbnb listings by keywords found in their **full descriptions**, not just titles. Built with .NET 9, Blazor Server, and Tailwind CSS.
+A web application that searches Airbnb listings by keywords found in their **full descriptions**, not just titles. Built with .NET 8, Blazor WebAssembly, and Tailwind CSS.
+
+🌐 **Live Demo**: [https://airbnb-scanner.netlify.app](https://airbnb-scanner.netlify.app) *(update with your actual Netlify URL)*
 
 ## Features
 
@@ -11,6 +13,7 @@ A web application that searches Airbnb listings by keywords found in their **ful
 - **Modern UI**: Clean, responsive design with custom date picker
 - **Real-Time Progress**: Live search progress with detailed status updates
 - **Results Ranking**: Results sorted by number of matched keywords
+- **Static Hosting**: Runs entirely in the browser - no server required!
 
 ## Screenshots
 
@@ -18,7 +21,8 @@ A web application that searches Airbnb listings by keywords found in their **ful
 
 ## Requirements
 
-- .NET 9.0 SDK or later
+For local development:
+- .NET 8.0 SDK or later
 - SearchAPI.io API key (free tier available)
 
 ## Getting Started
@@ -57,12 +61,24 @@ The application will open in your browser at `http://localhost:5000`
 dotnet publish src/AirbnbKeywordFinder.Web/AirbnbKeywordFinder.Web.csproj -c Release -o ./publish
 ```
 
-Run the published application:
+The published output will be in `./publish/wwwroot/` - this folder contains all static files ready for deployment.
 
-```bash
-cd publish
-./AirbnbKeywordFinder.Web.exe
-```
+## Deploying to Netlify
+
+This app is designed to run on static hosting services like Netlify.
+
+### Option 1: Deploy via GitHub
+
+1. Push your code to GitHub
+2. Connect your repo to Netlify
+3. Configure build settings:
+   - **Build command**: `dotnet publish src/AirbnbKeywordFinder.Web/AirbnbKeywordFinder.Web.csproj -c Release -o output`
+   - **Publish directory**: `output/wwwroot`
+
+### Option 2: Manual Deploy
+
+1. Build locally: `dotnet publish src/AirbnbKeywordFinder.Web/AirbnbKeywordFinder.Web.csproj -c Release -o ./publish`
+2. Drag and drop the `publish/wwwroot` folder to Netlify
 
 ## Project Structure
 
@@ -72,9 +88,9 @@ airbnb-scanner/
 │   ├── AirbnbKeywordFinder.Core/     # Shared library
 │   │   ├── Models/                   # Data models
 │   │   └── Services/                 # API client, search service
-│   └── AirbnbKeywordFinder.Web/      # Blazor web application
+│   └── AirbnbKeywordFinder.Web/      # Blazor WebAssembly application
 │       ├── Components/               # Razor components
-│       └── wwwroot/                  # Static files
+│       └── wwwroot/                  # Static files (index.html, _redirects)
 ├── AirbnbKeywordFinder.sln           # Solution file
 └── README.md
 ```
@@ -86,6 +102,8 @@ airbnb-scanner/
 3. **Keyword Match**: Searches the complete text for your keywords
 4. **Smart Cache**: Stores searched property IDs to avoid duplicate API calls
 5. **Results**: Displays matches sorted by keyword count (most matches first)
+
+> **Note**: This is a client-side application. All API calls are made directly from your browser using your own API key. Your API key is never sent to any server other than SearchAPI.io.
 
 ## Configuration Options
 
@@ -106,7 +124,7 @@ airbnb-scanner/
 
 ## Cache Management
 
-The application caches searched property IDs to save API credits. If you search the same location twice, previously checked listings will be skipped.
+The application caches searched property IDs in your browser to save API credits. If you search the same location twice, previously checked listings will be skipped.
 
 To re-scan listings:
 1. Click "Show Advanced Filters"
@@ -123,9 +141,9 @@ Example: Searching 10 properties uses ~11 credits.
 
 ## Tech Stack
 
-- .NET 9.0
-- Blazor Server
-- Tailwind CSS
+- .NET 8.0
+- Blazor WebAssembly
+- Tailwind CSS (via CDN)
 - SearchAPI.io (Airbnb API)
 
 ## License
