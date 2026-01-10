@@ -1,0 +1,164 @@
+@namespace AirbnbKeywordFinder.Web.Components.Pages
+
+<div class="relative date-picker-container">
+    <button type="button" @onclick="ToggleCalendar"
+            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition bg-white text-left flex items-center justify-between @(Disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-brand-400")"
+            disabled="@Disabled">
+        <span class="@(SelectedDate.HasValue ? "text-gray-900" : "text-gray-400")">
+            @(SelectedDate.HasValue ? SelectedDate.Value.ToString("MMM dd, yyyy") : Placeholder)
+        </span>
+        <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+    </button>
+
+    @if (isOpen)
+    {
+        <!-- Backdrop to close -->
+        <div class="fixed inset-0 z-[9998]" @onclick="() => isOpen = false"></div>
+        
+        <!-- Calendar dropdown -->
+        <div class="absolute left-0 bottom-full mb-2 z-[9999] bg-white rounded-2xl shadow-2xl border border-gray-200 p-4 w-72 animate-fade-in">
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-4">
+                <button type="button" @onclick="PreviousMonth" @onclick:stopPropagation="true" class="p-2 hover:bg-gray-100 rounded-lg transition">
+                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+                <span class="font-semibold text-gray-900">@currentMonth.ToString("MMMM yyyy")</span>
+                <button type="button" @onclick="NextMonth" @onclick:stopPropagation="true" class="p-2 hover:bg-gray-100 rounded-lg transition">
+                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Day names -->
+            <div class="grid grid-cols-7 gap-1 mb-2">
+                @foreach (var day in new[] { "Su", "Mo", "Tu", "We", "Th", "Fr", "Sa" })
+                {
+                    <div class="text-center text-xs font-medium text-gray-500 py-1">@day</div>
+                }
+            </div>
+
+            <!-- Calendar grid -->
+            <div class="grid grid-cols-7 gap-1">
+                @foreach (var day in GetCalendarDays())
+                {
+                    var isCurrentMonth = day.Month == currentMonth.Month;
+                    var isSelected = SelectedDate.HasValue && day.Date == SelectedDate.Value.Date;
+                    var isToday = day.Date == DateTime.Today;
+                    var isPast = day.Date < DateTime.Today && !AllowPastDates;
+
+                    <button type="button"
+                            @onclick="() => SelectDate(day)"
+                            @onclick:stopPropagation="true"
+                            disabled="@(isPast || !isCurrentMonth)"
+                            class="@GetDayClass(isCurrentMonth, isSelected, isToday, isPast)">
+                        @day.Day
+                    </button>
+                }
+            </div>
+
+            <!-- Footer -->
+            <div class="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+                <button type="button" @onclick="ClearDate" @onclick:stopPropagation="true" class="text-sm text-gray-500 hover:text-brand-500 transition">
+                    Clear
+                </button>
+                <button type="button" @onclick="SelectToday" @onclick:stopPropagation="true" class="text-sm text-indigo-600 font-medium hover:text-indigo-700 transition">
+                    Today
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public DateTime? SelectedDate { get; set; }
+    [Parameter] public EventCallback<DateTime?> SelectedDateChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Select date";
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool AllowPastDates { get; set; } = false;
+
+    private bool isOpen = false;
+    private DateTime currentMonth = DateTime.Today;
+
+    protected override void OnParametersSet()
+    {
+        if (SelectedDate.HasValue)
+        {
+            currentMonth = new DateTime(SelectedDate.Value.Year, SelectedDate.Value.Month, 1);
+        }
+    }
+
+    private void ToggleCalendar()
+    {
+        if (!Disabled)
+            isOpen = !isOpen;
+    }
+
+    private void PreviousMonth()
+    {
+        currentMonth = currentMonth.AddMonths(-1);
+    }
+
+    private void NextMonth()
+    {
+        currentMonth = currentMonth.AddMonths(1);
+    }
+
+    private async Task SelectDate(DateTime date)
+    {
+        if (date.Date < DateTime.Today && !AllowPastDates) return;
+        
+        SelectedDate = date;
+        await SelectedDateChanged.InvokeAsync(date);
+        isOpen = false;
+    }
+
+    private async Task ClearDate()
+    {
+        SelectedDate = null;
+        await SelectedDateChanged.InvokeAsync(null);
+        isOpen = false;
+    }
+
+    private async Task SelectToday()
+    {
+        await SelectDate(DateTime.Today);
+    }
+
+    private List<DateTime> GetCalendarDays()
+    {
+        var days = new List<DateTime>();
+        var firstDay = new DateTime(currentMonth.Year, currentMonth.Month, 1);
+        var startDay = firstDay.AddDays(-(int)firstDay.DayOfWeek);
+
+        for (int i = 0; i < 42; i++)
+        {
+            days.Add(startDay.AddDays(i));
+        }
+
+        return days;
+    }
+
+    private string GetDayClass(bool isCurrentMonth, bool isSelected, bool isToday, bool isPast)
+    {
+        var baseClass = "w-9 h-9 rounded-lg text-sm transition-all duration-200 ";
+
+        if (!isCurrentMonth)
+            return baseClass + "text-gray-300 cursor-default";
+
+        if (isPast)
+            return baseClass + "text-gray-300 cursor-not-allowed";
+
+        if (isSelected)
+            return baseClass + "bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-semibold shadow-lg";
+
+        if (isToday)
+            return baseClass + "bg-indigo-100 text-indigo-700 font-semibold hover:bg-indigo-200";
+
+        return baseClass + "text-gray-700 hover:bg-gray-100";
+    }
+}

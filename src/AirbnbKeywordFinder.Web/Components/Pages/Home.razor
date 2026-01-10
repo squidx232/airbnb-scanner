@@ -1,0 +1,675 @@
+@page "/"
+@using Microsoft.AspNetCore.Components.Web
+@using AirbnbKeywordFinder.Web.Components.Pages
+@inject IKeywordSearchService SearchService
+@inject ISearchCacheService CacheService
+@inject IConfiguration Configuration
+@rendermode RenderMode.InteractiveServer
+
+<div class="space-y-8 animate-fade-in">
+    <!-- Search Card -->
+    <div class="glass rounded-2xl shadow-xl overflow-hidden">
+        <div class="p-8">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-2">Find Your Perfect Stay</h2>
+                <p class="text-gray-600">Search Airbnb listings by keywords in their full descriptions</p>
+            </div>
+
+            <EditForm Model="@searchModel" OnValidSubmit="StartSearch">
+                <!-- Main Search Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                    <div class="lg:col-span-1">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                        <div class="relative">
+                            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            <input type="text" @bind="searchModel.Location" placeholder="Paris, Tokyo, New York..." 
+                                   class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition" 
+                                   disabled="@isSearching" />
+                        </div>
+                    </div>
+                    <div class="lg:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Keywords</label>
+                        <div class="relative">
+                            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <input type="text" @bind="searchModel.Keywords" placeholder="pool, ocean view, modern kitchen, balcony..." 
+                                   class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition" 
+                                   disabled="@isSearching" />
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Separate multiple keywords with commas</p>
+                    </div>
+                </div>
+
+                <!-- Dates and Guests -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Check-in</label>
+                        <DatePicker @bind-SelectedDate="searchModel.CheckIn" 
+                                    Placeholder="Select date" 
+                                    Disabled="@isSearching" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Check-out</label>
+                        <DatePicker @bind-SelectedDate="searchModel.CheckOut" 
+                                    Placeholder="Select date" 
+                                    Disabled="@isSearching" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Guests</label>
+                        <select @bind="searchModel.Adults" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition" disabled="@isSearching">
+                            @for (int i = 1; i <= 16; i++)
+                            {
+                                <option value="@i">@i @(i == 1 ? "guest" : "guests")</option>
+                            }
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Currency</label>
+                        <select @bind="searchModel.Currency" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition" disabled="@isSearching">
+                            <option value="USD">USD ($)</option>
+                            <option value="EUR">EUR (€)</option>
+                            <option value="GBP">GBP (£)</option>
+                            <option value="EGP">EGP (E£)</option>
+                            <option value="AED">AED (د.إ)</option>
+                            <option value="SAR">SAR (﷼)</option>
+                            <option value="JPY">JPY (¥)</option>
+                            <option value="AUD">AUD ($)</option>
+                            <option value="CAD">CAD ($)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Advanced Filters Toggle -->
+                <div class="mb-6">
+                    <button type="button" @onclick="() => showAdvanced = !showAdvanced" 
+                            class="flex items-center gap-2 text-sm font-medium text-brand-500 hover:text-brand-600 transition">
+                        <svg class="w-4 h-4 transition-transform @(showAdvanced ? "rotate-180" : "")" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                        @(showAdvanced ? "Hide" : "Show") Advanced Filters
+                    </button>
+                </div>
+
+                <!-- Advanced Filters -->
+                @if (showAdvanced)
+                {
+                    <div class="bg-gray-50 rounded-xl p-6 mb-6 space-y-6 animate-fade-in">
+                        <!-- Property Filters -->
+                        <div>
+                            <h4 class="text-sm font-semibold text-gray-700 mb-3">Property Filters</h4>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Property Type</label>
+                                    <select @bind="searchModel.PropertyType" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500" disabled="@isSearching">
+                                        <option value="">Any</option>
+                                        <option value="entire_home">Entire Home</option>
+                                        <option value="room">Private Room</option>
+                                        <option value="any">Shared Room</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Bedrooms</label>
+                                    <select @bind="searchModel.Bedrooms" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500" disabled="@isSearching">
+                                        <option value="">Any</option>
+                                        @for (int i = 1; i <= 8; i++)
+                                        {
+                                            <option value="@i">@i+</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Beds</label>
+                                    <select @bind="searchModel.Beds" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500" disabled="@isSearching">
+                                        <option value="">Any</option>
+                                        @for (int i = 1; i <= 8; i++)
+                                        {
+                                            <option value="@i">@i+</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Bathrooms</label>
+                                    <select @bind="searchModel.Bathrooms" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500" disabled="@isSearching">
+                                        <option value="">Any</option>
+                                        @for (int i = 1; i <= 8; i++)
+                                        {
+                                            <option value="@i">@i+</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Price Range -->
+                        <div>
+                            <h4 class="text-sm font-semibold text-gray-700 mb-3">Price Range (per night)</h4>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Minimum</label>
+                                    <input type="number" @bind="searchModel.PriceMin" placeholder="0" 
+                                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500" disabled="@isSearching" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Maximum</label>
+                                    <input type="number" @bind="searchModel.PriceMax" placeholder="No limit" 
+                                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500" disabled="@isSearching" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Amenities -->
+                        <div>
+                            <h4 class="text-sm font-semibold text-gray-700 mb-3">Amenities</h4>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                @foreach (var amenity in availableAmenities)
+                                {
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" checked="@selectedAmenities.Contains(amenity.Key)" 
+                                               @onchange="() => ToggleAmenity(amenity.Key)"
+                                               class="w-4 h-4 text-brand-500 border-gray-300 rounded focus:ring-brand-500" disabled="@isSearching" />
+                                        <span class="text-sm text-gray-700">@amenity.Value</span>
+                                    </label>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Search Settings -->
+                        <div>
+                            <h4 class="text-sm font-semibold text-gray-700 mb-3">Search Settings</h4>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Max Results</label>
+                                    <select @bind="searchModel.MaxResults" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500" disabled="@isSearching">
+                                        <option value="3">3</option>
+                                        <option value="5">5</option>
+                                        <option value="10">10</option>
+                                        <option value="20">20</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Max Pages</label>
+                                    <select @bind="searchModel.MaxPages" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500" disabled="@isSearching">
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-end">
+                                    <label class="flex items-center gap-2 cursor-pointer pb-2">
+                                        <input type="checkbox" @bind="searchModel.MatchAll" 
+                                               class="w-4 h-4 text-brand-500 border-gray-300 rounded focus:ring-brand-500" disabled="@isSearching" />
+                                        <span class="text-sm text-gray-700">Match ALL keywords</span>
+                                    </label>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Min Keywords</label>
+                                    <select @bind="searchModel.MinKeywords" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500" disabled="@isSearching">
+                                        <option value="1">1+ keyword</option>
+                                        <option value="2">2+ keywords</option>
+                                        <option value="3">3+ keywords</option>
+                                        <option value="4">4+ keywords</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-end">
+                                    <label class="flex items-center gap-2 cursor-pointer pb-2">
+                                        <input type="checkbox" @bind="searchModel.DemoMode" 
+                                               class="w-4 h-4 text-brand-500 border-gray-300 rounded focus:ring-brand-500" disabled="@isSearching" />
+                                        <span class="text-sm text-gray-700">Demo Mode</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- API Key -->
+                        <div>
+                            <h4 class="text-sm font-semibold text-gray-700 mb-3">API Configuration</h4>
+                            <div class="flex gap-4">
+                                <div class="flex-1">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-xs text-gray-600">API Key</label>
+                                        <a href="https://www.searchapi.io/" target="_blank" rel="noopener" 
+                                           class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">
+                                            Click here to get key
+                                        </a>
+                                    </div>
+                                    <input type="text" @bind="searchModel.CustomApiKey" placeholder="Enter your API key here..." 
+                                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 font-mono" disabled="@isSearching" />
+                                </div>
+                                <div class="flex items-end">
+                                    <div class="px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                                        <span class="text-xs text-amber-700">Est. credits: ~@EstimatedCredits</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cache Management -->
+                        <div>
+                            <h4 class="text-sm font-semibold text-gray-700 mb-3">Cache Management</h4>
+                            <div class="flex items-center gap-4">
+                                <div class="flex-1 p-3 bg-gray-100 rounded-lg">
+                                    <div class="flex items-center gap-2">
+                                        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+                                        </svg>
+                                        <span class="text-sm text-gray-600">
+                                            <strong>@CacheService.GetSearchedCount()</strong> listings cached
+                                        </span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">Cached listings are skipped to save API credits</p>
+                                </div>
+                                <button type="button" @onclick="ClearCache" 
+                                        class="px-4 py-2 bg-red-50 text-red-600 text-sm font-medium rounded-lg hover:bg-red-100 border border-red-200 transition"
+                                        disabled="@isSearching">
+                                    Clear Cache
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- Search Button -->
+                <button type="submit" disabled="@(!CanSearch)"
+                        class="w-full py-4 px-6 bg-gradient-to-r from-brand-500 to-purple-600 text-white font-semibold rounded-xl 
+                               hover:from-brand-600 hover:to-purple-700 focus:ring-4 focus:ring-brand-500/50 
+                               disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 
+                               flex items-center justify-center gap-3">
+                    @if (isSearching)
+                    {
+                        <svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Searching...</span>
+                    }
+                    else
+                    {
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <span>Search Listings</span>
+                    }
+                </button>
+            </EditForm>
+        </div>
+    </div>
+
+    <!-- Progress Section - Animated & Interactive -->
+    @if (progressMessages.Count > 0)
+    {
+        <div class="glass rounded-2xl shadow-xl overflow-hidden animate-slide-up">
+            <!-- Progress Header with Stats -->
+            <div class="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        @if (isSearching)
+                        {
+                            <div class="relative">
+                                <div class="w-10 h-10 rounded-full border-4 border-white/30 border-t-white animate-spin"></div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            </div>
+                        }
+                        <div>
+                            <h3 class="font-semibold text-white">@(isSearching ? "Searching..." : "Search Complete")</h3>
+                            <p class="text-white/70 text-sm">@(latestProgress?.Message ?? "Processing...")</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            @if (latestProgress != null)
+            {
+                <div class="grid grid-cols-3 divide-x divide-gray-200 bg-gray-50">
+                    <div class="p-4 text-center">
+                        <div class="text-2xl font-bold text-indigo-600">@latestProgress.PropertiesScanned</div>
+                        <div class="text-xs text-gray-500 uppercase tracking-wide">Scanned</div>
+                    </div>
+                    <div class="p-4 text-center">
+                        <div class="text-2xl font-bold text-green-600">@latestProgress.MatchesFound</div>
+                        <div class="text-xs text-gray-500 uppercase tracking-wide">Matches</div>
+                    </div>
+                    <div class="p-4 text-center">
+                        <div class="text-2xl font-bold text-amber-600">@latestProgress.CreditsUsed</div>
+                        <div class="text-xs text-gray-500 uppercase tracking-wide">Credits</div>
+                    </div>
+                </div>
+            }
+
+            <!-- Live Feed -->
+            <div class="p-4 max-h-64 overflow-y-auto bg-gray-900">
+                <div class="space-y-2 font-mono text-sm">
+                    @foreach (var (msg, index) in progressMessages.TakeLast(10).Select((m, i) => (m, i)))
+                    {
+                        var isLatest = index == progressMessages.TakeLast(10).Count() - 1;
+                        <div class="flex items-start gap-3 @(isLatest ? "animate-pulse" : "") transition-all duration-300"
+                             style="animation-delay: @(index * 50)ms">
+                            <!-- Status Icon -->
+                            @if (msg.Contains("MATCH") || msg.Contains("Complete"))
+                            {
+                                <div class="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <svg class="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                </div>
+                                <span class="text-green-400">@CleanMessage(msg)</span>
+                            }
+                            else if (msg.Contains("Skipped"))
+                            {
+                                <div class="w-6 h-6 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <svg class="w-3.5 h-3.5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
+                                    </svg>
+                                </div>
+                                <span class="text-yellow-400/70">@CleanMessage(msg)</span>
+                            }
+                            else if (msg.Contains("Failed") || msg.Contains("Error"))
+                            {
+                                <div class="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <svg class="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </div>
+                                <span class="text-red-400">@CleanMessage(msg)</span>
+                            }
+                            else if (msg.Contains("Checking"))
+                            {
+                                <div class="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    @if (isLatest && isSearching)
+                                    {
+                                        <div class="w-3 h-3 rounded-full border-2 border-blue-400/30 border-t-blue-400 animate-spin"></div>
+                                    }
+                                    else
+                                    {
+                                        <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                        </svg>
+                                    }
+                                </div>
+                                <span class="text-blue-400/80">@CleanMessage(msg)</span>
+                            }
+                            else
+                            {
+                                <div class="w-6 h-6 rounded-full bg-gray-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                </div>
+                                <span class="text-gray-400">@CleanMessage(msg)</span>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Results Section -->
+    @if (filteredResults.Any())
+    {
+        <div class="animate-slide-up">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h3 class="text-2xl font-bold text-white">Found @filteredResults.Count() Matching Listings</h3>
+                    @if (results.Count != filteredResults.Count())
+                    {
+                        <p class="text-white/60 text-sm">Showing listings with @searchModel.MinKeywords+ keywords (@results.Count total matches)</p>
+                    }
+                </div>
+                @if (searchDuration.HasValue)
+                {
+                    <div class="text-right">
+                        <span class="text-white/70">in @searchDuration.Value.TotalSeconds.ToString("F1")s</span>
+                        <p class="text-white/50 text-xs">Sorted by keyword count</p>
+                    </div>
+                }
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                @foreach (var match in filteredResults)
+                {
+                    <PropertyCard Match="@match" />
+                }
+            </div>
+        </div>
+    }
+    else if (searchCompleted && !isSearching)
+    {
+        <div class="glass rounded-2xl shadow-xl p-12 text-center animate-fade-in">
+            <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">No matches found</h3>
+            <p class="text-gray-600">
+                @if (results.Count > 0 && !filteredResults.Any())
+                {
+                    <span>Found @results.Count listings but none with @searchModel.MinKeywords+ keywords. Try lowering the minimum.</span>
+                }
+                else
+                {
+                    <span>Try different keywords or search in another location</span>
+                }
+            </p>
+        </div>
+    }
+</div>
+
+@code {
+    private SearchFormModel searchModel = new();
+    private List<MatchedProperty> results = new();
+    private List<string> progressMessages = new();
+    private SearchProgress? latestProgress;
+    private bool isSearching = false;
+    private bool searchCompleted = false;
+    private bool showAdvanced = false;
+    private TimeSpan? searchDuration;
+    private CancellationTokenSource? cts;
+    private HashSet<string> selectedAmenities = new();
+
+    private Dictionary<string, string> availableAmenities = new()
+    {
+        { "wifi", "WiFi" },
+        { "air_conditioning", "Air Conditioning" },
+        { "pool", "Pool" },
+        { "kitchen", "Kitchen" },
+        { "washer", "Washer" },
+        { "dryer", "Dryer" },
+        { "parking", "Free Parking" },
+        { "gym", "Gym" }
+    };
+
+    private bool CanSearch => !isSearching && 
+        !string.IsNullOrWhiteSpace(searchModel.Location) && 
+        !string.IsNullOrWhiteSpace(searchModel.Keywords);
+
+    private int EstimatedCredits => searchModel.DemoMode ? 0 : 
+        (1 + (searchModel.MaxResults * searchModel.MaxPages));
+
+    // Filter and sort results by keyword count (most keywords first)
+    private IEnumerable<MatchedProperty> filteredResults => results
+        .Where(r => r.MatchedKeywords.Count >= searchModel.MinKeywords)
+        .OrderByDescending(r => r.MatchedKeywords.Count)
+        .ThenByDescending(r => r.Property.Rating ?? 0);
+
+    private void ToggleAmenity(string key)
+    {
+        if (!selectedAmenities.Remove(key))
+            selectedAmenities.Add(key);
+    }
+
+    private string GetProgressClass(string msg) =>
+        msg.Contains("MATCH") || msg.Contains("Complete") ? "text-green-600" :
+        msg.Contains("Failed") || msg.Contains("Error") ? "text-red-600" : "text-gray-600";
+
+    private string CleanMessage(string msg) =>
+        msg.Replace("🔍", "").Replace("📄", "").Replace("🏠", "").Replace("✅", "").Replace("❌", "").Replace("⚠️", "").Replace("✨", "").Trim();
+
+    private void ClearCache()
+    {
+        CacheService.Clear();
+        StateHasChanged();
+    }
+
+    private async Task StartSearch()
+    {
+        if (!CanSearch) return;
+
+        isSearching = true;
+        searchCompleted = false;
+        results.Clear();
+        progressMessages.Clear();
+        latestProgress = null;
+        searchDuration = null;
+        cts = new CancellationTokenSource();
+
+        var keywords = searchModel.Keywords
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
+        try
+        {
+            if (searchModel.DemoMode)
+            {
+                await SimulateDemoSearch(keywords);
+            }
+            else
+            {
+                await PerformRealSearch(keywords);
+            }
+        }
+        catch (Exception ex)
+        {
+            progressMessages.Add($"Error: {ex.Message}");
+        }
+        finally
+        {
+            isSearching = false;
+            searchCompleted = true;
+            cts?.Dispose();
+            cts = null;
+        }
+    }
+
+    private async Task SimulateDemoSearch(List<string> keywords)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        
+        progressMessages.Add("Running in DEMO mode - no API credits used");
+        await Task.Delay(500);
+        StateHasChanged();
+
+        progressMessages.Add($"Simulating search in {searchModel.Location}...");
+        await Task.Delay(800);
+        StateHasChanged();
+
+        progressMessages.Add("Fetching demo properties...");
+        await Task.Delay(600);
+        StateHasChanged();
+
+        for (int i = 1; i <= 3; i++)
+        {
+            progressMessages.Add($"Checking property {i}...");
+            await Task.Delay(400);
+            StateHasChanged();
+        }
+
+        results = DemoDataService.GetDemoResults(searchModel.Location, keywords)
+            .Take(searchModel.MaxResults)
+            .ToList();
+
+        sw.Stop();
+        searchDuration = sw.Elapsed;
+
+        progressMessages.Add($"Complete! Found {results.Count} sample matches");
+        latestProgress = new SearchProgress 
+        { 
+            PropertiesScanned = 3, 
+            MatchesFound = results.Count, 
+            CreditsUsed = 0,
+            IsComplete = true 
+        };
+    }
+
+    private async Task PerformRealSearch(List<string> keywords)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
+        var request = new AirbnbSearchRequest
+        {
+            Query = searchModel.Location,
+            Adults = searchModel.Adults,
+            CheckInDate = searchModel.CheckIn.HasValue ? DateOnly.FromDateTime(searchModel.CheckIn.Value) : null,
+            CheckOutDate = searchModel.CheckOut.HasValue ? DateOnly.FromDateTime(searchModel.CheckOut.Value) : null,
+            TimePeriod = searchModel.CheckIn.HasValue ? null : "one_week",
+            Currency = searchModel.Currency,
+            TypeOfPlace = searchModel.PropertyType,
+            Bedrooms = searchModel.Bedrooms,
+            Beds = searchModel.Beds,
+            Bathrooms = searchModel.Bathrooms,
+            PriceMin = searchModel.PriceMin,
+            PriceMax = searchModel.PriceMax,
+            Amenities = selectedAmenities.Count > 0 ? string.Join(",", selectedAmenities) : null
+        };
+
+        var options = new KeywordSearchOptions
+        {
+            Keywords = keywords,
+            MatchAll = searchModel.MatchAll,
+            MaxResults = searchModel.MaxResults,
+            MaxPages = searchModel.MaxPages
+        };
+
+        var apiKey = string.IsNullOrWhiteSpace(searchModel.CustomApiKey) ? null : searchModel.CustomApiKey.Trim();
+        await foreach (var progress in SearchService.SearchWithProgressAsync(request, options, apiKey, cts!.Token))
+        {
+            progressMessages.Add(progress.Message);
+            latestProgress = progress;
+            
+            // Collect matched properties as they come in
+            if (progress.MatchedProperty != null)
+            {
+                results.Add(progress.MatchedProperty);
+            }
+            
+            StateHasChanged();
+
+            if (progress.IsComplete)
+                break;
+        }
+
+        sw.Stop();
+        searchDuration = sw.Elapsed;
+    }
+
+    private class SearchFormModel
+    {
+        public string Location { get; set; } = "";
+        public string Keywords { get; set; } = "";
+        public DateTime? CheckIn { get; set; }
+        public DateTime? CheckOut { get; set; }
+        public int Adults { get; set; } = 2;
+        public string Currency { get; set; } = "USD";
+        public string? PropertyType { get; set; }
+        public int? Bedrooms { get; set; }
+        public int? Beds { get; set; }
+        public int? Bathrooms { get; set; }
+        public decimal? PriceMin { get; set; }
+        public decimal? PriceMax { get; set; }
+        public bool MatchAll { get; set; } = false;
+        public bool DemoMode { get; set; } = true;
+        public int MaxResults { get; set; } = 5;
+        public int MaxPages { get; set; } = 1;
+        public string? CustomApiKey { get; set; }
+        public int MinKeywords { get; set; } = 1;
+    }
+}

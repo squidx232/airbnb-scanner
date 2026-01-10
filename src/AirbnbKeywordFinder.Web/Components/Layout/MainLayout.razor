@@ -1,0 +1,29 @@
+@inherits LayoutComponentBase
+
+<div class="min-h-screen flex flex-col">
+    <header class="glass sticky top-0 z-50 border-b border-gray-200/50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <img src="logo.png" alt="Airbnb Scanner" class="w-10 h-10 object-contain" />
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900">Airbnb Scanner</h1>
+                        <p class="text-xs text-gray-500">Deep keyword search</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            @Body
+        </div>
+    </main>
+
+    <footer class="glass border-t border-gray-200/50 py-4">
+        <div class="max-w-7xl mx-auto px-4 text-center text-sm text-gray-500">
+            Dev by <a href="https://linkedin.com/in/whereishassan" target="_blank" rel="noopener" class="text-indigo-600 hover:text-indigo-700 font-medium">@@whereishassan</a>
+        </div>
+    </footer>
+</div>

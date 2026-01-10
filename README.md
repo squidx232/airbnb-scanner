@@ -1,0 +1,137 @@
+# Airbnb Scanner
+
+A web application that searches Airbnb listings by keywords found in their **full descriptions**, not just titles. Built with .NET 9, Blazor Server, and Tailwind CSS.
+
+## Features
+
+- **Full-Text Search**: Searches complete listing descriptions, amenities, host info, and house rules
+- **Multiple Keywords**: Search with multiple keywords, filter by minimum keyword matches
+- **Smart Caching**: Skips previously searched listings to save API credits
+- **Advanced Filters**: Property type, bedrooms, beds, bathrooms, price range, amenities
+- **Modern UI**: Clean, responsive design with custom date picker
+- **Real-Time Progress**: Live search progress with detailed status updates
+- **Results Ranking**: Results sorted by number of matched keywords
+
+## Screenshots
+
+[Add screenshots here]
+
+## Requirements
+
+- .NET 9.0 SDK or later
+- SearchAPI.io API key (free tier available)
+
+## Getting Started
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/squidx232/airbnb-scanner.git
+cd airbnb-scanner
+```
+
+### 2. Get an API Key
+
+1. Visit [SearchAPI.io](https://www.searchapi.io/)
+2. Create a free account
+3. Copy your API key
+
+### 3. Run the application
+
+```bash
+cd src/AirbnbKeywordFinder.Web
+dotnet run
+```
+
+The application will open in your browser at `http://localhost:5000`
+
+### 4. Enter your API key
+
+1. Click "Show Advanced Filters"
+2. Scroll to "API Configuration"
+3. Paste your API key
+
+## Building for Production
+
+```bash
+dotnet publish src/AirbnbKeywordFinder.Web/AirbnbKeywordFinder.Web.csproj -c Release -o ./publish
+```
+
+Run the published application:
+
+```bash
+cd publish
+./AirbnbKeywordFinder.Web.exe
+```
+
+## Project Structure
+
+```
+airbnb-scanner/
+├── src/
+│   ├── AirbnbKeywordFinder.Core/     # Shared library
+│   │   ├── Models/                   # Data models
+│   │   └── Services/                 # API client, search service
+│   └── AirbnbKeywordFinder.Web/      # Blazor web application
+│       ├── Components/               # Razor components
+│       └── wwwroot/                  # Static files
+├── AirbnbKeywordFinder.sln           # Solution file
+└── README.md
+```
+
+## How It Works
+
+1. **Search Phase**: Queries Airbnb listings for a location using the SearchAPI
+2. **Detail Fetch**: For each listing, fetches full property details (description, amenities, etc.)
+3. **Keyword Match**: Searches the complete text for your keywords
+4. **Smart Cache**: Stores searched property IDs to avoid duplicate API calls
+5. **Results**: Displays matches sorted by keyword count (most matches first)
+
+## Configuration Options
+
+| Option | Description |
+|--------|-------------|
+| Location | City or area to search |
+| Keywords | Comma-separated list of keywords to find |
+| Check-in/out | Optional date range |
+| Guests | Number of guests (1-16) |
+| Currency | Price display currency |
+| Property Type | Entire home, private room, or any |
+| Bedrooms/Beds/Bathrooms | Minimum room counts |
+| Price Range | Min/max price per night |
+| Amenities | Required amenities filter |
+| Min Keywords | Minimum number of keywords to match |
+| Match ALL | Require all keywords to match |
+| Demo Mode | Test without using API credits |
+
+## Cache Management
+
+The application caches searched property IDs to save API credits. If you search the same location twice, previously checked listings will be skipped.
+
+To re-scan listings:
+1. Click "Show Advanced Filters"
+2. Scroll to "Cache Management"
+3. Click "Clear Cache"
+
+## API Credit Usage
+
+Each search uses approximately:
+- 1 credit for the search query
+- 1 credit per property for full details
+
+Example: Searching 10 properties uses ~11 credits.
+
+## Tech Stack
+
+- .NET 9.0
+- Blazor Server
+- Tailwind CSS
+- SearchAPI.io (Airbnb API)
+
+## License
+
+MIT License
+
+## Author
+
+Dev by [@whereishassan](https://linkedin.com/in/whereishassan)
