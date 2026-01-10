@@ -58,58 +58,44 @@
         .glass { backdrop-filter: blur(12px); background: rgba(255,255,255,0.8); }
         .animate-fade-in { animation: fadeIn 0.4s ease-out; }
         .animate-slide-up { animation: slideUp 0.5s ease-out; }
-        @@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .gradient-bg { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%); }
         input:focus, select:focus, textarea:focus { outline: none; }
         .card-hover { transition: all 0.3s ease; }
         .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.15); }
         
-        /* Custom Date Picker Styling */
-        input[type="date"] {
-            position: relative;
-            appearance: none;
-            -webkit-appearance: none;
-        }
-        input[type="date"]::-webkit-calendar-picker-indicator {
-            background: transparent;
-            bottom: 0;
-            color: transparent;
-            cursor: pointer;
-            height: auto;
-            left: 0;
-            position: absolute;
-            right: 0;
-            top: 0;
-            width: auto;
-        }
-        input[type="date"]::after {
-            content: '';
-            position: absolute;
-            right: 12px;
+        /* Loading indicator */
+        .loading-progress {
+            position: fixed;
             top: 50%;
-            transform: translateY(-50%);
-            width: 20px;
-            height: 20px;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-size: contain;
-            pointer-events: none;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
         }
-        
-        /* Date picker popup styling (Chrome/Edge) */
-        ::-webkit-datetime-edit { padding: 0; }
-        ::-webkit-datetime-edit-fields-wrapper { background: transparent; }
-        ::-webkit-datetime-edit-text { color: #6366f1; padding: 0 2px; }
-        ::-webkit-datetime-edit-month-field { color: #374151; }
-        ::-webkit-datetime-edit-day-field { color: #374151; }
-        ::-webkit-datetime-edit-year-field { color: #374151; }
-        ::-webkit-inner-spin-button { display: none; }
+        .loading-progress .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: #FF385C;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
-    <HeadOutlet />
 </head>
 <body class="h-full gradient-bg">
-    <Routes />
-    <script src="_framework/blazor.web.js"></script>
+    <div id="app">
+        <div class="loading-progress">
+            <div class="spinner"></div>
+            <p class="text-white mt-4">Loading Airbnb Scanner...</p>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui" style="display: none; position: fixed; bottom: 0; left: 0; right: 0; background: #ffebee; padding: 1rem; text-align: center;">
+        An unhandled error has occurred.
+        <a href="" class="text-brand-500 underline">Reload</a>
+    </div>
+    <script src="_framework/blazor.webassembly.js"></script>
 </body>
 </html>

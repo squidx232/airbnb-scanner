@@ -2,7 +2,6 @@ using System.Text.Json;
 using System.Web;
 using AirbnbKeywordFinder.Core.Models;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
 
 namespace AirbnbKeywordFinder.Core.Services;
 
@@ -10,24 +9,24 @@ public class SearchApiClient : ISearchApiClient
 {
     private readonly HttpClient _httpClient;
     private readonly IMemoryCache _cache;
-    private readonly string _apiKey;
-    private readonly string _baseUrl;
+    private const string BaseUrl = "https://www.searchapi.io/api/v1/search";
     private readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
 
-    public SearchApiClient(HttpClient httpClient, IMemoryCache cache, IConfiguration configuration)
+    public SearchApiClient(HttpClient httpClient, IMemoryCache cache)
     {
         _httpClient = httpClient;
         _cache = cache;
-        _apiKey = configuration["SearchApi:ApiKey"] ?? throw new InvalidOperationException("SearchApi:ApiKey is required");
-        _baseUrl = configuration["SearchApi:BaseUrl"] ?? "https://www.searchapi.io/api/v1/search";
     }
 
     public async Task<AirbnbSearchResponse> SearchAsync(AirbnbSearchRequest request, string? customApiKey = null, CancellationToken ct = default)
     {
-        var queryParams = request.ToQueryParameters();
-        queryParams["api_key"] = !string.IsNullOrWhiteSpace(customApiKey) ? customApiKey : _apiKey;
+        if (string.IsNullOrWhiteSpace(customApiKey))
+            throw new InvalidOperationException("API key is required. Please provide your SearchAPI key.");
 
-        var cacheKey = $"search_{string.Join("_", queryParams.OrderBy(k => k.Key).Select(k => $"{k.Key}={k.Value}"))}";
+        var queryParams = request.ToQueryParameters();
+        queryParams["api_key"] = customApiKey;
+
+        var cacheKey = $"search_{string.Join("_", queryParams.Where(k => k.Key != "api_key").OrderBy(k => k.Key).Select(k => $"{k.Key}={k.Value}"))}";
         
         if (_cache.TryGetValue(cacheKey, out AirbnbSearchResponse? cached) && cached != null)
             return cached;
@@ -51,17 +50,19 @@ public class SearchApiClient : ISearchApiClient
 
     public async Task<AirbnbPropertyResponse> GetPropertyDetailsAsync(string propertyId, DateOnly? checkIn = null, DateOnly? checkOut = null, string? customApiKey = null, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(customApiKey))
+            throw new InvalidOperationException("API key is required. Please provide your SearchAPI key.");
+
         var cacheKey = $"property_{propertyId}_{checkIn}_{checkOut}";
         
         if (_cache.TryGetValue(cacheKey, out AirbnbPropertyResponse? cached) && cached != null)
             return cached;
 
-        var apiKeyToUse = !string.IsNullOrWhiteSpace(customApiKey) ? customApiKey : _apiKey;
         var queryParams = new Dictionary<string, string>
         {
             ["engine"] = "airbnb_property",
             ["property_id"] = propertyId,
-            ["api_key"] = apiKeyToUse
+            ["api_key"] = customApiKey
         };
 
         if (checkIn.HasValue) queryParams["check_in_date"] = checkIn.Value.ToString("yyyy-MM-dd");
@@ -84,10 +85,10 @@ public class SearchApiClient : ISearchApiClient
         return result;
     }
 
-    private string BuildUrl(Dictionary<string, string> queryParams)
+    private static string BuildUrl(Dictionary<string, string> queryParams)
     {
         var queryString = string.Join("&", queryParams.Select(kvp => 
             $"{HttpUtility.UrlEncode(kvp.Key)}={HttpUtility.UrlEncode(kvp.Value)}"));
-        return $"{_baseUrl}?{queryString}";
+        return $"{BaseUrl}?{queryString}";
     }
 }
