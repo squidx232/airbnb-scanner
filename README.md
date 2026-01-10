@@ -2,7 +2,7 @@
 
 A web application that searches Airbnb listings by keywords found in their **full descriptions**, not just titles. Built with .NET 8, Blazor WebAssembly, and Tailwind CSS.
 
-🌐 **Live Demo**: [https://airbnb-scanner.netlify.app](https://airbnb-scanner.netlify.app) *(update with your actual Netlify URL)*
+🌐 **Live Demo**: [https://airbnb-scanner.netlify.app](https://airbnb-scanner.netlify.app)
 
 ## Features
 
@@ -17,7 +17,12 @@ A web application that searches Airbnb listings by keywords found in their **ful
 
 ## Screenshots
 
-[Add screenshots here]
+<img width="1241" height="525" alt="image" src="https://github.com/user-attachments/assets/69510880-69e7-49f3-942e-2b6a525ce48c" />
+
+<img width="872" height="786" alt="image" src="https://github.com/user-attachments/assets/5d192271-528f-411d-be53-5d1f6cd4f8fe" />
+
+<img width="1234" height="438" alt="image" src="https://github.com/user-attachments/assets/3c6aa3ba-19b1-48aa-b70b-e4a52d5908a8" />
+
 
 ## Requirements
 
