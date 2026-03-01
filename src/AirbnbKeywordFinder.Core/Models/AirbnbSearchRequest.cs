@@ -24,6 +24,7 @@ public class AirbnbSearchRequest
     public int? Beds { get; set; }
     public int? Bathrooms { get; set; }
     public string? Amenities { get; set; }
+    public string? HostUserId { get; set; }
     public string? PageToken { get; set; }
 
     public Dictionary<string, string> ToQueryParameters()
@@ -49,6 +50,7 @@ public class AirbnbSearchRequest
         if (Beds.HasValue) parameters["beds"] = Beds.Value.ToString();
         if (Bathrooms.HasValue) parameters["bathrooms"] = Bathrooms.Value.ToString();
         if (!string.IsNullOrWhiteSpace(Amenities)) parameters["amenities"] = Amenities;
+        if (!string.IsNullOrWhiteSpace(HostUserId)) parameters["airbnb_user_id"] = HostUserId;
         if (!string.IsNullOrWhiteSpace(PageToken)) parameters["cursor"] = PageToken;
 
         return parameters;

@@ -14,7 +14,7 @@
 
             <EditForm Model="@searchModel" OnValidSubmit="StartSearch">
                 <!-- Main Search Row -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
                     <div class="lg:col-span-1">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
                         <div class="relative">
@@ -26,6 +26,7 @@
                                    class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition" 
                                    disabled="@isSearching" />
                         </div>
+                        <p class="text-xs text-gray-500 mt-1">Required unless searching by host</p>
                     </div>
                     <div class="lg:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Keywords</label>
@@ -39,6 +40,63 @@
                         </div>
                         <p class="text-xs text-gray-500 mt-1">Separate multiple keywords with commas</p>
                     </div>
+                </div>
+
+                <!-- Host/User Search Row -->
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="flex-1 h-px bg-gray-200"></div>
+                    <span class="text-xs font-medium text-gray-400 uppercase tracking-wide">or search by host</span>
+                    <div class="flex-1 h-px bg-gray-200"></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                    <div class="lg:col-span-1">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Host User ID
+                            <span class="relative group cursor-help ml-1">
+                                <svg class="w-4 h-4 text-gray-400 hover:text-indigo-500 transition inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <span class="absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-lg">
+                                    Find a host's user ID from their Airbnb profile URL:<br/>airbnb.com/users/show/<strong>12345678</strong>
+                                </span>
+                            </span>
+                        </label>
+                        <div class="relative">
+                            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            <input type="text" @bind="searchModel.HostUserId" placeholder="e.g. 12345678" 
+                                   class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition font-mono" 
+                                   disabled="@isSearching" />
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Searches all listings by this host</p>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(searchModel.HostUserId))
+                    {
+                        <div class="lg:col-span-2 flex items-end">
+                            <div class="w-full px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+                                <div class="flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                    </svg>
+                                    <div>
+                                        <p class="text-sm font-medium text-indigo-700">Searching host listings</p>
+                                        <p class="text-xs text-indigo-500">
+                                            Will search all listings by host <strong>@searchModel.HostUserId</strong>.
+                                            @if (!string.IsNullOrWhiteSpace(searchModel.Location))
+                                            {
+                                                <span> Location filter "<strong>@searchModel.Location</strong>" will also apply.</span>
+                                            }
+                                            else
+                                            {
+                                                <span> Location is optional when searching by host.</span>
+                                            }
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
                 </div>
 
                 <!-- Dates and Guests -->
@@ -579,7 +637,7 @@
     };
 
     private bool CanSearch => !isSearching && 
-        !string.IsNullOrWhiteSpace(searchModel.Location) && 
+        (!string.IsNullOrWhiteSpace(searchModel.Location) || !string.IsNullOrWhiteSpace(searchModel.HostUserId)) && 
         !string.IsNullOrWhiteSpace(searchModel.Keywords);
 
     private int EstimatedCredits => searchModel.DemoMode ? 0 : 
@@ -720,7 +778,8 @@
 
         var request = new AirbnbSearchRequest
         {
-            Query = searchModel.Location,
+            Query = string.IsNullOrWhiteSpace(searchModel.Location) ? null : searchModel.Location,
+            HostUserId = string.IsNullOrWhiteSpace(searchModel.HostUserId) ? null : searchModel.HostUserId.Trim(),
             Adults = searchModel.Adults,
             CheckInDate = searchModel.CheckIn.HasValue ? DateOnly.FromDateTime(searchModel.CheckIn.Value) : null,
             CheckOutDate = searchModel.CheckOut.HasValue ? DateOnly.FromDateTime(searchModel.CheckOut.Value) : null,
@@ -769,6 +828,7 @@
     {
         public string Location { get; set; } = "";
         public string Keywords { get; set; } = "";
+        public string HostUserId { get; set; } = "";
         public DateTime? CheckIn { get; set; }
         public DateTime? CheckOut { get; set; }
         public int Adults { get; set; } = 2;

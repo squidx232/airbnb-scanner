@@ -34,7 +34,10 @@ public class KeywordSearchService : IKeywordSearchService
         string? pageToken = null;
         var skippedCount = 0;
 
-        yield return new SearchProgress { Message = $"Searching in {searchRequest.Query}...", CreditsUsed = creditsUsed };
+        var searchTarget = !string.IsNullOrWhiteSpace(searchRequest.HostUserId)
+            ? $"listings by user {searchRequest.HostUserId}"
+            : $"in {searchRequest.Query}";
+        yield return new SearchProgress { Message = $"Searching {searchTarget}...", CreditsUsed = creditsUsed };
 
         for (int page = 0; page < keywordOptions.MaxPages && !ct.IsCancellationRequested; page++)
         {
