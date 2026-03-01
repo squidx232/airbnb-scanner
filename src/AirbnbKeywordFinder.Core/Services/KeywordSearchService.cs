@@ -219,7 +219,18 @@ public class KeywordSearchService : IKeywordSearchService
 
     private MatchedProperty? MatchProperty(AirbnbPropertyDetails details, AirbnbProperty basic, HostInfo? host, KeywordSearchOptions options)
     {
-        if (options.Keywords.Count == 0) return null;
+        // If no keywords specified, return all properties (e.g. browsing all host listings)
+        if (options.Keywords.Count == 0)
+        {
+            return new MatchedProperty
+            {
+                Property = basic,
+                FullDetails = details,
+                Host = host,
+                MatchedKeywords = new List<string>(),
+                MatchContexts = new List<string>()
+            };
+        }
 
         var searchText = details.GetSearchableText();
         if (host != null)

@@ -57,7 +57,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                 </svg>
                                 <span class="absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-lg">
-                                    Find a host's user ID from their Airbnb profile URL:<br/>airbnb.com/users/show/<strong>12345678</strong>
+                                    Paste a profile URL or just the ID/slug:<br/>airbnb.com/profile/<strong>XYZ</strong> → paste the full URL or just <strong>XYZ</strong>
                                 </span>
                             </span>
                         </label>
@@ -65,7 +65,7 @@
                             <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                             </svg>
-                            <input type="text" @bind="searchModel.HostUserId" placeholder="e.g. 12345678" 
+                            <input type="text" @bind="searchModel.HostUserId" @bind:event="oninput" placeholder="e.g. 12345678 or airbnb.com/profile/XYZ" 
                                    class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition font-mono" 
                                    disabled="@isSearching" />
                         </div>
@@ -638,7 +638,30 @@
 
     private bool CanSearch => !isSearching && 
         (!string.IsNullOrWhiteSpace(searchModel.Location) || !string.IsNullOrWhiteSpace(searchModel.HostUserId)) && 
-        !string.IsNullOrWhiteSpace(searchModel.Keywords);
+        (!string.IsNullOrWhiteSpace(searchModel.Keywords) || !string.IsNullOrWhiteSpace(searchModel.HostUserId));
+
+    /// <summary>
+    /// Extracts the user ID/slug from a full Airbnb profile URL or returns the value as-is if it's already an ID/slug.
+    /// Handles formats like:
+    ///   https://www.airbnb.com/profile/XYZ
+    ///   https://www.airbnb.com/users/show/12345678
+    ///   XYZ (plain slug or numeric ID)
+    /// </summary>
+    private static string ParseHostUserId(string input)
+    {
+        var trimmed = input.Trim();
+        // Try to parse as a URL
+        if (trimmed.StartsWith("http", StringComparison.OrdinalIgnoreCase) || trimmed.Contains("airbnb.com"))
+        {
+            // /profile/SLUG or /profile/SLUG?...
+            var profileMatch = System.Text.RegularExpressions.Regex.Match(trimmed, @"/profile/([^/?&#]+)");
+            if (profileMatch.Success) return profileMatch.Groups[1].Value;
+            // /users/show/ID
+            var usersMatch = System.Text.RegularExpressions.Regex.Match(trimmed, @"/users/show/([^/?&#]+)");
+            if (usersMatch.Success) return usersMatch.Groups[1].Value;
+        }
+        return trimmed;
+    }
 
     private int EstimatedCredits => searchModel.DemoMode ? 0 : 
         (1 + (searchModel.MaxResults * searchModel.MaxPages));
@@ -704,9 +727,11 @@
         selectedFilterKeywords.Clear();
         cts = new CancellationTokenSource();
 
-        var keywords = searchModel.Keywords
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .ToList();
+        var keywords = string.IsNullOrWhiteSpace(searchModel.Keywords)
+            ? new List<string>()
+            : searchModel.Keywords
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
 
         try
         {
@@ -779,7 +804,7 @@
         var request = new AirbnbSearchRequest
         {
             Query = string.IsNullOrWhiteSpace(searchModel.Location) ? null : searchModel.Location,
-            HostUserId = string.IsNullOrWhiteSpace(searchModel.HostUserId) ? null : searchModel.HostUserId.Trim(),
+            HostUserId = string.IsNullOrWhiteSpace(searchModel.HostUserId) ? null : ParseHostUserId(searchModel.HostUserId),
             Adults = searchModel.Adults,
             CheckInDate = searchModel.CheckIn.HasValue ? DateOnly.FromDateTime(searchModel.CheckIn.Value) : null,
             CheckOutDate = searchModel.CheckOut.HasValue ? DateOnly.FromDateTime(searchModel.CheckOut.Value) : null,
