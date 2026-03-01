@@ -757,7 +757,7 @@
     private string CleanMessage(string msg) =>
         msg.Replace("🔍", "").Replace("📄", "").Replace("🏠", "").Replace("✅", "").Replace("❌", "").Replace("⚠️", "").Replace("✨", "").Trim();
 
-    private System.Threading.Timer? _hostDebounceTimer;
+    private CancellationTokenSource? _hostResolveCts;
 
     private Task OnHostUserIdInput(ChangeEventArgs e)
     {
@@ -765,40 +765,48 @@
         return ResolveHostAsync();
     }
 
-    private Task ResolveHostAsync()
+    private async Task ResolveHostAsync()
     {
+        // Cancel any in-flight resolution
+        _hostResolveCts?.Cancel();
+        _hostResolveCts = new CancellationTokenSource();
+        var ct = _hostResolveCts.Token;
+
         resolvedHost = null;
-        _hostDebounceTimer?.Dispose();
 
         var parsed = ParseHostUserId(searchModel.HostUserId ?? "");
         if (string.IsNullOrWhiteSpace(parsed) || string.IsNullOrWhiteSpace(searchModel.CustomApiKey))
         {
+            isResolvingHost = false;
             StateHasChanged();
-            return Task.CompletedTask;
+            return;
         }
 
         isResolvingHost = true;
         StateHasChanged();
 
-        _hostDebounceTimer = new System.Threading.Timer(async _ =>
+        try
         {
-            try
+            // 800ms debounce — wait before firing the API call
+            await Task.Delay(800, ct);
+            if (ct.IsCancellationRequested) return;
+
+            var apiKey = searchModel.CustomApiKey?.Trim();
+            if (!string.IsNullOrWhiteSpace(apiKey))
             {
-                var apiKey = searchModel.CustomApiKey?.Trim();
-                if (!string.IsNullOrWhiteSpace(apiKey))
-                {
-                    resolvedHost = await ApiClient.GetHostInfoAsync(parsed, apiKey);
-                }
+                resolvedHost = await ApiClient.GetHostInfoAsync(parsed, apiKey, ct);
             }
-            catch { }
-            finally
+        }
+        catch (OperationCanceledException) { /* debounced away */ }
+        catch { /* API error - leave resolvedHost null */ }
+        finally
+        {
+            if (!ct.IsCancellationRequested)
             {
                 isResolvingHost = false;
-                await InvokeAsync(StateHasChanged);
+                StateHasChanged();
             }
-        }, null, 800, System.Threading.Timeout.Infinite);
-
-        return Task.CompletedTask;
+        }
     }
 
     private void ClearCache()

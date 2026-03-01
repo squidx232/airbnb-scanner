@@ -15,6 +15,10 @@ public class AirbnbPropertyDetails
     [JsonPropertyName("id")] public string? Id { get; set; }
     [JsonPropertyName("title")] public string? Title { get; set; }
     [JsonPropertyName("description")] public string? Description { get; set; }
+    // Some API responses nest description items as a list of strings
+    [JsonPropertyName("description_items")] public List<string> DescriptionItems { get; set; } = new();
+    // Some API responses use "sections" with a "description" field
+    [JsonPropertyName("sections")] public List<PropertySection> Sections { get; set; } = new();
     [JsonPropertyName("link")] public string? Link { get; set; }
     [JsonPropertyName("rating")] public double? Rating { get; set; }
     [JsonPropertyName("reviews")] public int? Reviews { get; set; }
@@ -30,7 +34,11 @@ public class AirbnbPropertyDetails
     {
         var parts = new List<string?>
         {
-            Title, Description,
+            Title,
+            Description,
+            // Additional description fields from different API response formats
+            DescriptionItems.Count > 0 ? string.Join(" ", DescriptionItems) : null,
+            Sections.Count > 0 ? string.Join(" ", Sections.Select(s => $"{s.Title} {s.Description}").Where(s => s.Trim().Length > 0)) : null,
             string.Join(" ", Accommodations),
             string.Join(" ", Highlights.Select(h => $"{h.Name} {h.Description}")),
             string.Join(" ", Amenities.Where(a => a.IsAvailable == true).Select(a => a.Name)),
@@ -38,6 +46,12 @@ public class AirbnbPropertyDetails
         };
         return string.Join(" ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
     }
+}
+
+public class PropertySection
+{
+    [JsonPropertyName("title")] public string? Title { get; set; }
+    [JsonPropertyName("description")] public string? Description { get; set; }
 }
 
 public class PropertyHighlight
