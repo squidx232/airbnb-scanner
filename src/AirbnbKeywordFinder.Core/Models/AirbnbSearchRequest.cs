@@ -31,8 +31,8 @@ public class AirbnbSearchRequest
     {
         var parameters = new Dictionary<string, string> { ["engine"] = "airbnb" };
 
-        // q is required by the API; when searching by host without a location, send empty string
-        parameters["q"] = string.IsNullOrWhiteSpace(Query) ? "" : Query;
+        // Only send q when a location is provided; airbnb_user_id works without q
+        if (!string.IsNullOrWhiteSpace(Query)) parameters["q"] = Query;
         if (!string.IsNullOrWhiteSpace(BoundingBox)) parameters["bounding_box"] = BoundingBox;
         if (!string.IsNullOrWhiteSpace(AirbnbDomain)) parameters["airbnb_domain"] = AirbnbDomain;
         if (!string.IsNullOrWhiteSpace(Currency)) parameters["currency"] = Currency;

@@ -2,6 +2,7 @@
 @using AirbnbKeywordFinder.Web.Components.Pages
 @inject IKeywordSearchService SearchService
 @inject ISearchCacheService CacheService
+@inject ISearchApiClient ApiClient
 
 <div class="space-y-8 animate-fade-in">
     <!-- Search Card -->
@@ -65,7 +66,9 @@
                             <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                             </svg>
-                            <input type="text" @bind="searchModel.HostUserId" @bind:event="oninput" placeholder="e.g. 12345678 or airbnb.com/profile/XYZ" 
+                            <input type="text" value="@searchModel.HostUserId"
+                                   @oninput="OnHostUserIdInput"
+                                   placeholder="e.g. 12345678 or airbnb.com/profile/XYZ" 
                                    class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition font-mono" 
                                    disabled="@isSearching" />
                         </div>
@@ -74,24 +77,60 @@
                     @if (!string.IsNullOrWhiteSpace(searchModel.HostUserId))
                     {
                         <div class="lg:col-span-2 flex items-end">
-                            <div class="w-full px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-xl">
-                                <div class="flex items-center gap-2">
-                                    <svg class="w-5 h-5 text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                    </svg>
+                            <div class="w-full px-4 py-3 @(resolvedHost != null ? "bg-green-50 border-green-200" : "bg-indigo-50 border-indigo-200") border rounded-xl transition-colors duration-300">
+                                <div class="flex items-center gap-3">
+                                    @if (isResolvingHost)
+                                    {
+                                        <div class="w-8 h-8 rounded-full border-2 border-indigo-300 border-t-indigo-600 animate-spin flex-shrink-0"></div>
+                                    }
+                                    else if (resolvedHost?.Avatar != null)
+                                    {
+                                        <img src="@resolvedHost.Avatar" alt="@resolvedHost.Name" class="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-green-300" />
+                                    }
+                                    else
+                                    {
+                                        <svg class="w-8 h-8 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                        </svg>
+                                    }
                                     <div>
-                                        <p class="text-sm font-medium text-indigo-700">Searching host listings</p>
-                                        <p class="text-xs text-indigo-500">
-                                            Will search all listings by host <strong>@searchModel.HostUserId</strong>.
-                                            @if (!string.IsNullOrWhiteSpace(searchModel.Location))
-                                            {
-                                                <span> Location filter "<strong>@searchModel.Location</strong>" will also apply.</span>
-                                            }
-                                            else
-                                            {
-                                                <span> Location is optional when searching by host.</span>
-                                            }
-                                        </p>
+                                        @if (isResolvingHost)
+                                        {
+                                            <p class="text-sm font-medium text-indigo-700">Looking up host...</p>
+                                            <p class="text-xs text-indigo-400">Verifying host ID</p>
+                                        }
+                                        else if (resolvedHost != null)
+                                        {
+                                            <p class="text-sm font-medium text-green-700 flex items-center gap-1">
+                                                ✓ Host confirmed: <strong>@resolvedHost.Name</strong>
+                                                @if (resolvedHost.IsSuperhost == true)
+                                                {
+                                                    <span class="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full">Superhost</span>
+                                                }
+                                            </p>
+                                            <p class="text-xs text-green-600">
+                                                Will search all listings by this host.
+                                                @if (!string.IsNullOrWhiteSpace(searchModel.Location))
+                                                {
+                                                    <span> Location filter "<strong>@searchModel.Location</strong>" will also apply.</span>
+                                                }
+                                            </p>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-sm font-medium text-indigo-700">Searching host listings</p>
+                                            <p class="text-xs text-indigo-500">
+                                                Host ID: <strong>@ParseHostUserId(searchModel.HostUserId)</strong>.
+                                                @if (!string.IsNullOrWhiteSpace(searchModel.Location))
+                                                {
+                                                    <span> Location filter "<strong>@searchModel.Location</strong>" will also apply.</span>
+                                                }
+                                                else
+                                                {
+                                                    <span> Enter your API key above to verify this host.</span>
+                                                }
+                                            </p>
+                                        }
                                     </div>
                                 </div>
                             </div>
@@ -604,7 +643,7 @@
                 }
                 else
                 {
-                    <span>Try different keywords or search in another location</span>
+                    <span>@(string.IsNullOrWhiteSpace(searchModel.Keywords) ? "No listings found for this host. Try clearing the cache or checking the host ID." : "Try different keywords or search in another location")</span>
                 }
             </p>
         </div>
@@ -623,6 +662,8 @@
     private CancellationTokenSource? cts;
     private HashSet<string> selectedAmenities = new();
     private HashSet<string> selectedFilterKeywords = new();
+    private HostInfo? resolvedHost;
+    private bool isResolvingHost = false;
 
     private Dictionary<string, string> availableAmenities = new()
     {
@@ -677,12 +718,20 @@
         .Count(r => r.MatchedKeywords.Contains(keyword, StringComparer.OrdinalIgnoreCase));
 
     // Filter and sort results by keyword count (most keywords first)
-    private IEnumerable<MatchedProperty> filteredResults => results
-        .Where(r => r.MatchedKeywords.Count >= searchModel.MinKeywords)
-        .Where(r => !selectedFilterKeywords.Any() || 
-            selectedFilterKeywords.All(sk => r.MatchedKeywords.Contains(sk, StringComparer.OrdinalIgnoreCase)))
-        .OrderByDescending(r => r.MatchedKeywords.Count)
-        .ThenByDescending(r => r.Property.Rating ?? 0);
+    // When no keywords were entered (host-browse mode), min threshold is 0
+    private IEnumerable<MatchedProperty> filteredResults
+    {
+        get
+        {
+            var effectiveMin = string.IsNullOrWhiteSpace(searchModel.Keywords) ? 0 : searchModel.MinKeywords;
+            return results
+                .Where(r => r.MatchedKeywords.Count >= effectiveMin)
+                .Where(r => !selectedFilterKeywords.Any() || 
+                    selectedFilterKeywords.All(sk => r.MatchedKeywords.Contains(sk, StringComparer.OrdinalIgnoreCase)))
+                .OrderByDescending(r => r.MatchedKeywords.Count)
+                .ThenByDescending(r => r.Property.Rating ?? 0);
+        }
+    }
 
     private void ToggleAmenity(string key)
     {
@@ -707,6 +756,50 @@
 
     private string CleanMessage(string msg) =>
         msg.Replace("🔍", "").Replace("📄", "").Replace("🏠", "").Replace("✅", "").Replace("❌", "").Replace("⚠️", "").Replace("✨", "").Trim();
+
+    private System.Threading.Timer? _hostDebounceTimer;
+
+    private Task OnHostUserIdInput(ChangeEventArgs e)
+    {
+        searchModel.HostUserId = e.Value?.ToString() ?? "";
+        return ResolveHostAsync();
+    }
+
+    private Task ResolveHostAsync()
+    {
+        resolvedHost = null;
+        _hostDebounceTimer?.Dispose();
+
+        var parsed = ParseHostUserId(searchModel.HostUserId ?? "");
+        if (string.IsNullOrWhiteSpace(parsed) || string.IsNullOrWhiteSpace(searchModel.CustomApiKey))
+        {
+            StateHasChanged();
+            return Task.CompletedTask;
+        }
+
+        isResolvingHost = true;
+        StateHasChanged();
+
+        _hostDebounceTimer = new System.Threading.Timer(async _ =>
+        {
+            try
+            {
+                var apiKey = searchModel.CustomApiKey?.Trim();
+                if (!string.IsNullOrWhiteSpace(apiKey))
+                {
+                    resolvedHost = await ApiClient.GetHostInfoAsync(parsed, apiKey);
+                }
+            }
+            catch { }
+            finally
+            {
+                isResolvingHost = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }, null, 800, System.Threading.Timeout.Infinite);
+
+        return Task.CompletedTask;
+    }
 
     private void ClearCache()
     {

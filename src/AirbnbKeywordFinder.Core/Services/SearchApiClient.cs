@@ -85,6 +85,47 @@ public class SearchApiClient : ISearchApiClient
         return result;
     }
 
+    public async Task<HostInfo?> GetHostInfoAsync(string hostUserId, string? customApiKey = null, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(customApiKey)) return null;
+
+        var cacheKey = $"host_info_{hostUserId}";
+        if (_cache.TryGetValue(cacheKey, out HostInfo? cachedHost) && cachedHost != null)
+            return cachedHost;
+
+        try
+        {
+            var queryParams = new Dictionary<string, string>
+            {
+                ["engine"] = "airbnb",
+                ["airbnb_user_id"] = hostUserId,
+                ["api_key"] = customApiKey
+            };
+
+            var url = BuildUrl(queryParams);
+            var response = await _httpClient.GetAsync(url, ct);
+            var content = await response.Content.ReadAsStringAsync(ct);
+
+            if (!response.IsSuccessStatusCode) return null;
+
+            var result = JsonSerializer.Deserialize<AirbnbSearchResponse>(content, _jsonOptions);
+            if (result?.Properties == null || result.Properties.Count == 0) return null;
+
+            var firstPropertyId = result.Properties[0].Id;
+            if (string.IsNullOrEmpty(firstPropertyId)) return null;
+
+            var details = await GetPropertyDetailsAsync(firstPropertyId, null, null, customApiKey, ct);
+            if (details?.Host == null) return null;
+
+            _cache.Set(cacheKey, details.Host, TimeSpan.FromMinutes(5));
+            return details.Host;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static string BuildUrl(Dictionary<string, string> queryParams)
     {
         var queryString = string.Join("&", queryParams.Select(kvp => 
